@@ -32,6 +32,7 @@ class Board:
     def __init__(self, size):
         self.size = size
         self.stones = {}
+        self.utilidad = 0
 
     def random_fill(self, seed=None):
         rand = random.Random(seed)
@@ -40,6 +41,19 @@ class Board:
             color = rand.choice([EMPTY, BLACK, WHITE])
             if color != EMPTY:
                 self.stones[point] = color
+
+    def fill_basic(self):
+        self.stones[Point(2,2)] = 2
+
+    def fill(self):
+        for point in self.iter_points():
+            #color = rand.choice([EMPTY, BLACK, WHITE])
+            #if color != EMPTY:
+            self.stones[point] = EMPTY        
+
+    def move(self,x,y,t):
+        point = Point(x,y)
+        self.stones[point] = WHITE if t == 1 else BLACK
 
     def is_inside(self, point):
         return 0 <= point.x < self.size.w and 0 <= point.y < self.size.h
@@ -58,33 +72,62 @@ class Board:
             for y in range(self.size.h):
                 yield Point(x, y)
 
+    def es_hoja(self):
+        resp = True
+        for i in range(0,self.size.w):
+            for j in range(0,self.size.h):
+                #print(board.stones[Point(i,j)])
+                point = Point(i,j)
+                if(self.stones[point] == 0):
+                    resp = False
+        return resp
+
     def find_groups(self):
         groups = []
         grouped_points = set()
+        try:
+            for point, color in self.stones.items():
+                #assert color != EMPTY
+                if point in grouped_points:
+                    continue
 
-        for point, color in self.stones.items():
-            assert color != EMPTY
+                group = Group(color)
 
-            if point in grouped_points:
-                continue
+                todo = [point]
+                while todo:
+                    point = todo.pop()
+                    if point not in grouped_points:
+                        color = self.stones.get(point, EMPTY)
+                        if color == EMPTY:
+                            group.liberties.add(point)
+                        elif color == group.color:
+                            group.points.add(point)
+                            grouped_points.add(point)
+                            todo.extend(self.get_neighbours(point))
 
-            group = Group(color)
-
-            todo = [point]
-            while todo:
-                point = todo.pop()
-                if point not in grouped_points:
-                    color = self.stones.get(point, EMPTY)
-                    if color == EMPTY:
-                        group.liberties.add(point)
-                    elif color == group.color:
-                        group.points.add(point)
-                        grouped_points.add(point)
-                        todo.extend(self.get_neighbours(point))
-
-            groups.append(group)
+                groups.append(group)
+            
+        except AssertionError:
+            print("Oops!  That was no valid number.  Try again...")
+            #pass
 
         return groups
+
+    def get_new_board(self,cap):
+        
+        #self.stones[point] = WHITE if t == 0 else BLACK
+        for i in range(0,self.size.w):
+            for j in range(0,self.size.h):
+                point = Point(i,j)
+                #print(cap.stones[point])
+
+    def copy(self):
+        board_new = Board(Size(5,5))
+        for x in range(self.size.w):
+            for y in range(self.size.h):
+                point = Point(x,y)
+                board_new.stones[point] = self.stones[point]
+        return board_new
 
 
 def print_board(board):
@@ -110,23 +153,40 @@ def print_board(board):
     print()
 
 
-def print_captured_groups(groups, board_size):
-    board = Board(board_size)
+def print_captured_groups(board, groups, board_size):
+    board_new = Board(board_size)
+    for group in groups:
+        #print(group)
+        if group.get_num_liberties() == 0:
+            for point in group.points:
+                board_new.stones[point] = group.color
+                board.stones[point] = 0
+    #print_board(board)
+    #print("--------------------- seccion capturas --------------------")
+    #print_board(board_new)
+    #print(board)
+    #print("-----------------------------------------------------------")
+    return board_new
+
+def get_num_capture(board,groups,board_size,turno):
+    board_new = Board(board_size)
+    num = 0
     for group in groups:
         if group.get_num_liberties() == 0:
             for point in group.points:
-                board.stones[point] = group.color
+                board_new.stones[point] = group.color
+                if group.color == turno:
+                    num += 1
+    return num
 
-    print_board(board)
 
+#board = Board(Size(9, 9))
+#board.random_fill(seed=13)
 
-board = Board(Size(9, 9))
-board.random_fill(seed=13)
+#print('Board:')
+#print_board(board)
 
-print('Board:')
-print_board(board)
+#groups = board.find_groups()
 
-groups = board.find_groups()
-
-print('Captured groups:')
-print_captured_groups(groups, board.size)
+#print('Captured groups:')
+#print_captured_groups(groups, board.size)
